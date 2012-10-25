@@ -16,3 +16,5 @@ target_link_libraries(clouds ${PCL_LIBRARIES} ${OpenCV_LIBS})
 
 add_executable (calculate_checkerboard_transforms calculate_checkerboard_transforms.cpp)
 target_link_libraries (calculate_checkerboard_transforms clouds ${PCL_LIBRARIES})
+
+set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)

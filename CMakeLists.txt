@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8 FATAL_ERROR)
 
-project(voxel_grid)
+project(modelbuilder)
 
 find_package(PCL 1.5 REQUIRED)
 find_package(OpenCV REQUIRED)
