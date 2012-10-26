@@ -24,7 +24,7 @@ int main(int argc, char*argv[]){
             //load the cloud from the file
             if(loadCloud(argv[i],current,tmp) == -1)
                 return -1;
-            
+
             total_clouds ++;
             //update the user of the progress
             if(total_clouds%2==0)
@@ -46,14 +46,6 @@ int main(int argc, char*argv[]){
             }
         }
         writeTransforms("transforms.txt",&transforms,&success_mask);
-        /*
-        //project the transforms onto a plane
-        Eigen::Vector3f x = fitPlaneToTransformTranslations(transforms,success_mask); //get the parameters of the best fit plane to the checkerboard translations
-        for(int i  = 0; i< transforms.size(); i++){
-            //transforms[i] = projectTransformToPlane(transforms[i],x);
-        }
-        projectTransformTranslationsToPlane(x,&transforms,success_mask); //project the translations onto the plane
-        */
     }
     return 0;
 }

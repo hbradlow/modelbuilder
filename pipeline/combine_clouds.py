@@ -73,8 +73,15 @@ class ReconstructionPipeline:
             print "Performing poisson reconstruction"
         import convert
         convert.pcd_to_pts(open(self.pcd_name),open(self.pts_name,"w"))
-        command = "../PoissonRecon-amd64 --in " + self.pts_name + " --out " + self.ply_name.split(".")[0] + " --depth " + str(self.poisson_depth)
+        command = "../bin/PoissonRecon-amd64 --in " + self.pts_name + " --out " + self.ply_name.split(".")[0] + " --depth " + str(self.poisson_depth)
         self.run_command(command)
+
+    def process_transforms(self):
+        tp = TransformProcessor()
+        tp.load_from_file()
+        tp.process()
+        tp.output_to_file()
+        tp.show()
 
     def show(self):
         """
@@ -127,7 +134,6 @@ class ReconstructionPipeline:
             pass
         self.display_progress(100)
         print
-
     def display_progress(self,percent):
         """
             Display a text based progress bar.
@@ -151,78 +157,15 @@ def process_transforms():
 if __name__ == "__main__":
     import time
     start = time.time()
-    pipeline = ReconstructionPipeline(skip=60,debug=True,base_dir="tmp_combine_clouds")
-    pipeline.collect_data()
-    pipeline.calculate_transforms()
 
-    process_transforms()
-    
+    pipeline = ReconstructionPipeline(skip=60,debug=True,base_dir="tmp_combine_clouds")
+    #pipeline.collect_data()
+    pipeline.calculate_transforms()
+    pipeline.process_transforms()
     pipeline.concatenate_clouds()
     pipeline.reconstruct()
+
     end = time.time()
     print "Took",str(round(end-start,2)),"seconds to comlete"
     
     pipeline.show()
-
-
-
-
-# old stuff
-
-"""
-translations = []
-poses = []
-xs = []
-ys = []
-zs = []
-complete = 0.0
-while True:
-    line = proc.stdout.readline()
-    if line == "":
-        break;
-    elif "PERCENT COMPLETE:" in line:
-        complete = float(line.split("PERCENT COMPLETE:")[-1].strip())
-    elif "Transform:" in line:
-        #extract the list of poses from the output
-        match = re.match("^Transform:\s*(.+?)\s+(.+?)\s+(.+?)\s*$",line)
-        translations.append((match.group(1),match.group(2),match.group(3)))
-    elif "X:" in line:
-        #extract the list of poses from the output
-        match = re.match("^X:\s*(.+?)\s+(.+?)\s+(.+?)\s*$",line)
-        xs.append((match.group(1),match.group(2),match.group(3)))
-    elif "Y:" in line:
-        #extract the list of poses from the output
-        match = re.match("^Y:\s*(.+?)\s+(.+?)\s+(.+?)\s*$",line)
-        ys.append((match.group(1),match.group(2),match.group(3)))
-    elif "Z:" in line:
-        #extract the list of poses from the output
-        match = re.match("^Z:\s*(.+?)\s+(.+?)\s+(.+?)\s*$",line)
-        zs.append((match.group(1),match.group(2),match.group(3)))
-    else:
-        print line
-exit()
-        
-def plot(points,label):
-    import matplotlib.pyplot as plt
-    from mpl_toolkits.mplot3d import Axes3D
-    fig = plt.figure(label)
-    ax = fig.add_subplot(111,projection="3d")
-    x = [float(a[0]) for a in points]
-    y = [float(a[1]) for a in points]
-    z = [float(a[2]) for a in points]
-    def ave(l):
-        return reduce(lambda x,y: x+y,l)/len(l)
-    ax.scatter(x,y,z)
-    plt.show()
-
-debug = False
-plot(translations,"Translations")
-if debug:
-    plot(xs,"Affect on X axis")
-    plot(ys,"Affect on Y axis")
-    plot(zs,"Affect on Z axis")
-
-import convert
-subprocess.Popen("../PoissonRecon-amd64 --in test.pts --out out --depth 6".split(" ")).wait()
-subprocess.Popen("meshlab out.ply".split(" "))
-"""

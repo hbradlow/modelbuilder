@@ -19,6 +19,7 @@ bool get_chessboard_pose(Mat& image, int width_cb, int height_cb, double size, c
 	}
 
 	bool found = findChessboardCorners(gray_image, Size(width_cb,height_cb), corners);
+    std::cout << found << std::endl;
 	// CV_CALIB_CB_ADAPTIVE_THRESH | CV_CALIB_CB_FILTER_QUADS
 	if(found) {
 		cornerSubPix(gray_image, corners, Size(11, 11), Size(-1, -1), TermCriteria(CV_TERMCRIT_EPS | CV_TERMCRIT_ITER, 30, 0.1));

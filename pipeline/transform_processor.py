@@ -92,8 +92,8 @@ class TransformProcessor:
         f = open(self.filename,"w")
         for transform in self.transforms:
             f.write("TRANSFORM\n")
-            #f.write("1\n")
-            f.write(("1" if transform.is_valid else "0") + "\n")
+            f.write("1\n")
+            #f.write(("1" if transform.is_valid else "0") + "\n")
             for row in transform.transform:
                 f.write(" ".join([str(num) for num in row]) + "\n")
             f.write("\n")
@@ -142,9 +142,9 @@ class TransformProcessor:
         self.mark_transforms_invalid()
         #self.sort_transforms_by_circle_angle()
         self.interpolate_transforms_along_circle()
+
         for transform in self.transforms:
-            if transform.is_valid:
-                transform.calculate_quaternion()
+            transform.calculate_quaternion()
 
         #undo the intermediate transformations
         self.transform_transforms(self.flatten_transform,inverse=True)
@@ -430,13 +430,13 @@ class TransformProcessor:
                 x.append(translation[0])
                 y.append(translation[1])
                 z.append(translation[2])
-                q_x.append(transform.q[0])
-                q_y.append(transform.q[1])
-                q_z.append(transform.q[2])
             if not transform.is_valid:
                 x_n.append(translation[0])
                 y_n.append(translation[1])
                 z_n.append(translation[2])
+            q_x.append(transform.q[0])
+            q_y.append(transform.q[1])
+            q_z.append(transform.q[2])
         ax.scatter(x,y,z,color="b",s=200)
         ax.scatter(x_n,y_n,z_n,color="r",s=200)
         ax_quats.scatter(q_x,q_y,q_z,color="g",s=200)
@@ -455,6 +455,7 @@ class TransformProcessor:
 
         art3d.pathpatch_2d_to_3d(circle, z=0, zdir="x")
         ax.auto_scale_xyz([-.5, .5], [-.5, .5], [-0, 1])
+        ax_quats.auto_scale_xyz([-.5, .5], [-.5, .5], [-0, 1])
         plt.show()
 
         self.transform_transforms(self.flatten_transform,inverse=True)

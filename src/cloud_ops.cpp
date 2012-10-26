@@ -22,9 +22,7 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <limits>
-#ifndef NOT_BULLETSIM
 #include "utils_cv.h"
-#endif
 #include "utils_vector.h"
 
 typedef ColorPoint PointT;
