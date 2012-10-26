@@ -4,6 +4,7 @@
 
 #binaries
 build/*
+*.pyc
 
 #cmake
 CMakeFiles
