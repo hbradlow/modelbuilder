@@ -11,9 +11,10 @@ int main(int argc, char*argv[]){
 
     //keep track of all the frames
     std::vector<Eigen::Matrix4f> transforms; //the transform of the checkerboard for the frame
+    std::map<std::string,Eigen::Matrix4f> transform_map; //the transform of the checkerboard for the frame
     std::vector< pcl::PointCloud<pcl::PointNormal> > clouds; //the cloud for a frame
     std::vector<int> success_mask; //indicates if a checkerboard was located in the frame
-    readTransforms("transforms.txt",&transforms,&success_mask);
+    readTransforms("transforms.txt",&transform_map,&success_mask);
 
     if(argc>1){
         // Reorient each cloud to line the checkerboards up and concatenate them all into a "master" cloud
@@ -25,13 +26,16 @@ int main(int argc, char*argv[]){
             if(loadCloud(argv[i],current,tmp) == -1)
                 return -1;
             clouds.push_back(*current);
+            transforms.push_back(transform_map[argv[i]]);
         }
 
+        int total_clouds = 0;
+
+        #pragma omp parallel for
         for(int i = 0; i<clouds.size(); i++)
         {
             if(success_mask[i]!=0){
 
-                cout << "PERCENT COMPLETE:" << (float)i/clouds.size() * 100 << endl;
 
                 Eigen::Matrix4f transform = transforms[i]; 
 
@@ -57,22 +61,29 @@ int main(int argc, char*argv[]){
                 pcl::transformPointCloudWithNormals(*c,*c,transform);
                 filterByLocation(c,c);
 
-                for(int j = 0; j<c->points.size(); j++){
-                    pcl::PointNormal p1 = c->points[j];
-                    master->push_back(p1);
+                #pragma omp critical
+                {
+                    for(int j = 0; j<c->points.size(); j++){
+                        pcl::PointNormal p1 = c->points[j];
+                        master->push_back(p1);
+                    }
+
+                    total_clouds ++;
+                    //update the user of the progress
+                    cout << "PERCENT COMPLETE:" << (float)total_clouds/clouds.size() * 100 << endl;
                 }
             }
         }
         
-        //pcl::io::savePCDFileASCII ("intermediate.pcd", *master);
+        pcl::io::savePCDFileASCII ("intermediate.pcd", *master);
 
 
         //filter by statical outliers
         cout << "Filtering the master cloud for statistical outliers..." << endl;
         pcl::StatisticalOutlierRemoval<pcl::PointNormal> sor;
         sor.setInputCloud (master);
-        sor.setMeanK (70);
-        sor.setStddevMulThresh (3.0);
+        sor.setMeanK (150);
+        sor.setStddevMulThresh (2.0);
         sor.filter (*filtered);
         *master = *filtered;
         
@@ -96,10 +107,18 @@ int main(int argc, char*argv[]){
         mls.setInputCloud (master);
         mls.setPolynomialFit (true);
         mls.setSearchMethod (tree);
-        mls.setSearchRadius (0.01);
+        mls.setSearchRadius (0.002);
         mls.setOutputNormals(mls_normals);
         mls.reconstruct (mls_points);
         *master = mls_points;
+
+        //filter by statical outliers
+        cout << "Filtering the master cloud for statistical outliers..." << endl;
+        sor.setInputCloud (master);
+        sor.setMeanK (300);
+        sor.setStddevMulThresh (1.0);
+        sor.filter (*filtered);
+        *master = *filtered;
 
         //close the bottom of the cloud to make a semi inclosed surface
         cout << "Closing the bottom of the shape..." << endl;

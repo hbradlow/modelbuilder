@@ -30,8 +30,8 @@ using namespace std;
 
 //these values are measured values from the setup
 //specifies the bouding box around the object being scanned
-#define X_LOWER_BOUND           0.18
-#define X_UPPER_BOUND           0.35
+#define X_LOWER_BOUND           -0.35
+#define X_UPPER_BOUND           -0.18
 #define Y_LOWER_BOUND           -0.1
 #define Y_UPPER_BOUND           0.1
 #define Z_LOWER_BOUND           0.015
@@ -58,7 +58,7 @@ std::vector<std::string> split(const std::string &s, char delim) {
     return split(s, delim, elems);
 }
 //read a file full of transformations into memory
-void readTransforms(string filename, vector<Eigen::Matrix4f>* transforms, vector<int>* success_mask){
+void readTransforms(string filename, map<string,Eigen::Matrix4f>* transforms, vector<int>* success_mask){
     string line;
     ifstream file (filename.c_str());
     if (file.is_open())
@@ -67,6 +67,8 @@ void readTransforms(string filename, vector<Eigen::Matrix4f>* transforms, vector
         {
             getline (file,line);
             if(line.compare("TRANSFORM") == 0){
+                getline (file,line);
+                string name = line;
                 getline (file,line);
                 success_mask->push_back(atoi(line.c_str()));
                 Eigen::Matrix4f transform(4,4);
@@ -77,18 +79,19 @@ void readTransforms(string filename, vector<Eigen::Matrix4f>* transforms, vector
                         transform(i,j) = atof(numbers[j].c_str());
                     }
                 }
-                transforms->push_back(transform);
+                (*transforms)[name] = transform;
             }
         }
         file.close();
     }
 }
 //write a list of transformations to a file
-void writeTransforms(string filename, vector<Eigen::Matrix4f>* transforms, vector<int>* success_mask){
+void writeTransforms(string filename, vector<Eigen::Matrix4f>* transforms, vector<string>* filenames, vector<int>* success_mask){
     ofstream file;
     file.open(filename.c_str());
     for(int i = 0; i<transforms->size(); i++){
         file << "TRANSFORM" << endl;
+        file << (*filenames)[i] << endl;
         file << (*success_mask)[i] << endl;
         Eigen::Matrix4f transform = (*transforms)[i];
         for(int r = 0; r<transform.rows(); r++){
@@ -375,7 +378,7 @@ void closeCloud(pcl::PointCloud<pcl::PointNormal>::Ptr master){
     pcl::PassThrough<pcl::PointNormal> pass;
     pass.setInputCloud (master);
     pass.setFilterFieldName ("z");
-    pass.setFilterLimits (Z_LOWER_BOUND, Z_LOWER_BOUND+.05);
+    pass.setFilterLimits (Z_LOWER_BOUND, Z_LOWER_BOUND+.01);
     pass.filter (*plate);
 
     //take slices of the ring and add points to fill in the cloud

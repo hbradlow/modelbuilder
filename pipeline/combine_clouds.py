@@ -62,7 +62,8 @@ class ReconstructionPipeline:
         """
         if self.debug:
             print "Calculating transformation matricies"
-        command = "./bin/calculate_checkerboard_transforms " + self.get_files_string()
+
+        command = "./bin/calculate_checkerboard_transforms " + self.get_files_string(skip=1)
         self.run_command(command)
 
     def reconstruct(self):
@@ -76,12 +77,16 @@ class ReconstructionPipeline:
         command = "../bin/PoissonRecon-amd64 --in " + self.pts_name + " --out " + self.ply_name.split(".")[0] + " --depth " + str(self.poisson_depth)
         self.run_command(command)
 
-    def process_transforms(self):
+    def process_transforms(self,show=None):
+        if show is None:
+            show = self.debug
+
         tp = TransformProcessor()
         tp.load_from_file()
         tp.process()
         tp.output_to_file()
-        tp.show()
+        if show:
+            tp.show()
 
     def show(self):
         """
@@ -92,17 +97,19 @@ class ReconstructionPipeline:
         command = "meshlab " + self.ply_name
         self.run_command(command)
 
-    def get_files_string(self):
+    def get_files_string(self,skip=None):
         """
             Generate a string of all the point clouds that will be processed by parts of the pipeline.
         """
+        if not skip:
+            skip = self.skip
         #compile the command from the directory of clouds
         def sort_key(file):
             number = re.match(r'.*?(\d+)\.pcd',file).group(1)
             return int(number)
         files = sorted(os.listdir(self.base_dir),key=sort_key)
         output = ""
-        for f in files[0::self.skip]:
+        for f in files[0::skip]:
             output += self.base_dir + "/" + f + " "
         return output
 
@@ -158,7 +165,7 @@ if __name__ == "__main__":
     import time
     start = time.time()
 
-    pipeline = ReconstructionPipeline(skip=60,debug=True,base_dir="tmp_combine_clouds")
+    pipeline = ReconstructionPipeline(skip=30,debug=True,base_dir="tmp_combine_clouds")
     #pipeline.collect_data()
     pipeline.calculate_transforms()
     pipeline.process_transforms()

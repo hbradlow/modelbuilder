@@ -9,6 +9,16 @@ import numpy as np
 import scipy
 from scipy import optimize
 import math
+
+from data_process import Ellipse, CircleFit
+
+class Circle:
+    def __init__(self,origin=[0,0,0],radius=0):
+        self.origin = origin
+        self.radius = radius
+        self.axis = [0,0,1]
+    def __repr__(self):
+        return "center: " + str(self.origin) + ", radius: " + str(self.radius)
 class Arrow3D(FancyArrowPatch):
     """
         An arrow object for a matplotlib 3d plot.
@@ -50,34 +60,41 @@ class Axis3D:
             a = np.dot(2,np.array(a)).tolist() # make the vector longer
             self.arrows.append(Arrow3D([origin[0],origin[0]+a[0]],[origin[1],origin[1]+a[1]],[origin[2],origin[2]+a[2]],mutation_scale=20,lw=1,arrowstyle="-|>", color=color))
 
-class Circle:
-    def __init__(self,origin,radius):
-        self.origin = origin
-        self.radius = radius
-        self.axis = None
-    def __repr__(self):
-        return "center: " + str(self.origin) + ", radius: " + str(self.radius)
 class Transform:
-    def __init__(self):
+    def __init__(self,debug=False):
+        self.debug = debug
         self.is_valid = False
+        self.do_not_use = False
         self.transform = [[0 for i in range(4)] for j in range(4)]
+        self.filename = ""
         self.q = []
+        self.rot_axis = []
     def calculate_quaternion(self):
         from cgkit.cgtypes import quat, mat3, slerp
         q = quat()
         mat = mat3([num for row in self.transform[0:3] for num in row[0:3]])
-        mat = mat.decompose()[0]
-        q.fromMat(mat)
+        try:
+            mat = mat.decompose()[0]
+            q.fromMat(mat)
+        except ZeroDivisionError:
+            q = quat(0,0,0,0)
+            self.do_not_use = True
+
+        a = 2*math.acos(q.w)
+        t = np.dot(np.array([q.x,q.y,q.z]),a)
+        self.rot_axis = t.tolist()
+
         self.q = np.dot(np.array([q.x,q.y,q.z]),q.w).tolist()
         
 class TransformProcessor:
-    def __init__(self,filename="transforms.txt"):
+    def __init__(self,filename="transforms.txt",skip=10):
         self.filename = filename
         self.transforms = []
         self.translations = []
         self.rotations = []
         self.show_transform_axis = True
         self.angle_per_index = None
+        self.skip = skip
     def update_angle_per_index(self,angle):
         alpha = .2
         print "angle",angle
@@ -92,7 +109,9 @@ class TransformProcessor:
         f = open(self.filename,"w")
         for transform in self.transforms:
             f.write("TRANSFORM\n")
-            f.write("1\n")
+            f.write(transform.filename + "\n")
+            #f.write("1\n")
+            f.write(("0" if transform.do_not_use else "1") + "\n")
             #f.write(("1" if transform.is_valid else "0") + "\n")
             for row in transform.transform:
                 f.write(" ".join([str(num) for num in row]) + "\n")
@@ -106,6 +125,7 @@ class TransformProcessor:
         while line:
             if "TRANSFORM" in line:
                 t = Transform()
+                t.filename = f.readline().strip()
                 t.is_valid = f.readline().strip() == "1"
                 for i in range(4):
                     line = f.readline()
@@ -145,6 +165,9 @@ class TransformProcessor:
 
         for transform in self.transforms:
             transform.calculate_quaternion()
+
+        #cf = CircleFit([t.q for t in self.transforms])
+        #cf.process()
 
         #undo the intermediate transformations
         self.transform_transforms(self.flatten_transform,inverse=True)
@@ -279,7 +302,7 @@ class TransformProcessor:
         good_index = None
         for (index,transform) in enumerate(self.transforms):
             enclosing_transforms = self.valid_enclosing_transforms(index)
-            if enclosing_transforms[0] <= enclosing_transforms[1]:
+            if not transform.is_valid and enclosing_transforms[0] <= enclosing_transforms[1]:
                 self.translations[index] = self.slerp_translations(enclosing_transforms[0],index,enclosing_transforms[1])
                 self.rotations[index] = self.slerp_rotations(enclosing_transforms[0],index,enclosing_transforms[1])
             """
@@ -331,6 +354,7 @@ class TransformProcessor:
         new_transforms = []
         for translation,rotation,transform in zip(self.translations,self.rotations,self.transforms):
             new_transform = Transform()
+            new_transform.filename = transform.filename
             new_transform.is_valid = transform.is_valid
             new_transform.transform = [rotation[index] + [translation[index]] for index in range(3)] + [[0,0,0,1]]
             new_transforms.append(new_transform)
@@ -425,7 +449,7 @@ class TransformProcessor:
         x = []; y = []; z = []
         q_x = []; q_y = []; q_z = []
         x_n = []; y_n = []; z_n = []
-        for translation,transform in zip(self.translations,self.transforms):
+        for translation,transform in zip(self.translations,self.transforms)[0::self.skip]:
             if transform.is_valid:
                 x.append(translation[0])
                 y.append(translation[1])
@@ -442,7 +466,7 @@ class TransformProcessor:
         ax_quats.scatter(q_x,q_y,q_z,color="g",s=200)
 
         if self.show_transform_axis:
-            for t in self.transforms:
+            for t in self.transforms[0::self.skip]:
                 a = Axis3D(t.transform)
                 for arrow in a.arrows:
                     ax.add_artist(arrow)
