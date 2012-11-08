@@ -5,6 +5,7 @@
 #binaries
 build/*
 *.pyc
+venv
 
 #cmake
 CMakeFiles
