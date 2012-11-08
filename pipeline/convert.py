@@ -12,5 +12,7 @@ def pcd_to_pts(input,output):
         line = input.readline()
     output.close()
 
+def ply_to_pcd(input,output):
+    pass
 if __name__ == "__main__":
     pcd_to_pts(open("output.pcd"),open("test.pts","w"))
