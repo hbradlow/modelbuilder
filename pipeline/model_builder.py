@@ -32,9 +32,8 @@ class ModelBuilder:
         sh.mkdir(self.output_dir)
 
         sh.cp(["-r",self.tmp_dir,os.path.join(self.output_dir,"pcd_files")]) #copy tmp files to database location
-        sh.cp(["transforms.txt",self.output_dir])
-        sh.cp(["output.pcd",self.output_dir])
-        sh.cp(["output.ply",self.output_dir])
+        for f_name in self.pipeline.files():
+            sh.cp([f_name,self.output_dir])
 
         self.database.append(self.data)
         f = open(self.database_filename,"w")
@@ -45,17 +44,19 @@ class ModelBuilder:
         import time
         start = time.time()
 
-        pipeline = ReconstructionPipeline(skip=30,debug=True,base_dir=self.tmp_dir)
-        pipeline.collect_data()
-        pipeline.calculate_transforms()
-        pipeline.process_transforms(show=False)
-        pipeline.concatenate_clouds()
-        pipeline.reconstruct()
+        self.pipeline = ReconstructionPipeline(skip=30,debug=True,base_dir=self.tmp_dir)
+        self.pipeline.collect_data()
+        self.pipeline.calculate_transforms()
+        self.pipeline.process_transforms(show=False)
+        self.pipeline.concatenate_clouds()
+        self.pipeline.reconstruct()
+        self.pipeline.generate_mesh_pcd()
+        self.pipeline.generate_convex_hull()
 
         end = time.time()
         print "Took",str(round(end-start,2)),"seconds to comlete"
 
-        pipeline.show()
+        self.pipeline.show()
 
 if __name__ == "__main__":
     mb = ModelBuilder()

@@ -1,5 +1,4 @@
-include_directories(
-    ${PCL_INCLUDE_DIRS}
+include_directories( ${PCL_INCLUDE_DIRS}
     ${BULLET_INCLUDE_DIR}
     ${JSON_INCLUDE_DIR}
     ${EIGEN3_INCLUDE_DIR}
@@ -16,5 +15,14 @@ target_link_libraries(calculate_checkerboard_transforms clouds ${OpenCV_LIBS} ${
 
 add_executable(concatenate_clouds concatenate_clouds.cpp)
 target_link_libraries(concatenate_clouds clouds ${OpenCV_LIBS} ${PCL_LIBRARIES})
+
+add_executable(process_model process_model.cpp)
+target_link_libraries(process_model clouds ${OpenCV_LIBS} ${PCL_LIBRARIES})
+
+add_executable(find_model find_model.cpp)
+target_link_libraries(find_model clouds ${OpenCV_LIBS} ${PCL_LIBRARIES})
+
+add_executable(template_alignment template_alignment.cpp)
+target_link_libraries(template_alignment clouds ${OpenCV_LIBS} ${PCL_LIBRARIES})
 
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)

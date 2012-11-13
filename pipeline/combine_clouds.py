@@ -24,11 +24,16 @@ class ReconstructionPipeline:
         self.debug = debug
 
         self.transforms_name = transforms_name
-        self.ply_name = "output.ply"
+        self.ply_name = "mesh.ply"
+        self.convex_hull_name = "hull.vtk"
         self.pcd_name = "output.pcd"
+        self.pcd_mesh_name = "mesh.pcd"
         self.pts_name = "output.pts"
 
         self.poisson_depth = 6
+
+    def files(self):
+        return [self.ply_name,self.pcd_name,self.transforms_name,self.pcd_mesh_name,self.convex_hull_name]
 
     def collect_data(self):
         """
@@ -75,6 +80,17 @@ class ReconstructionPipeline:
         import convert
         convert.pcd_to_pts(open(self.pcd_name),open(self.pts_name,"w"))
         command = "../bin/PoissonRecon-amd64 --in " + self.pts_name + " --out " + self.ply_name.split(".")[0] + " --depth " + str(self.poisson_depth)
+        self.run_command(command)
+
+    def generate_mesh_pcd(self):
+        import convert
+        with open(self.ply_name) as f:
+            convert.ply_to_pcd(f,open(self.pcd_mesh_name,"w"))
+
+    def generate_convex_hull(self):
+        if self.debug:
+            print "Generating convex hull"
+        command = "./bin/process_model " + self.pcd_mesh_name + " " + self.convex_hull_name
         self.run_command(command)
 
     def process_transforms(self,show=None):
@@ -129,7 +145,10 @@ class ReconstructionPipeline:
                 break
             line = proc.read()
             if "PERCENT COMPLETE:" in line:
-                self.display_progress(float(line.split("PERCENT COMPLETE:")[-1].replace("\n","")))
+                try:
+                    self.display_progress(float(line.split("PERCENT COMPLETE:")[-1].replace("\n","")))
+                except ValueError:
+                    pass
             if seconds:
                 current_time = time.time()
                 if current_time-start_time>seconds:

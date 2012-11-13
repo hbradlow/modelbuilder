@@ -75,7 +75,7 @@ int main(int argc, char*argv[]){
             }
         }
         
-        pcl::io::savePCDFileASCII ("intermediate.pcd", *master);
+        //pcl::io::savePCDFileASCII ("intermediate.pcd", *master);
 
 
         //filter by statical outliers

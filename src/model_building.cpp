@@ -419,3 +419,17 @@ void closeCloud(pcl::PointCloud<pcl::PointNormal>::Ptr master){
         }
     }
 }
+
+void calculateCentroid(CloudPtr cloud,float* x){
+    for(int i = 0; i<cloud->points.size(); i++){
+        x[0] += cloud->points[i].x;
+        x[1] += cloud->points[i].y;
+        x[2] += cloud->points[i].z;
+    }
+    x[0] /= cloud->size();
+    x[1] /= cloud->size();
+    x[2] /= cloud->size();
+}
+float distanceBetweenPoints(float* x, float* y){
+    return sqrt(pow(x[0]-y[0],2)+pow(x[1]-y[1],2)+pow(x[2]-y[2],2));
+}
