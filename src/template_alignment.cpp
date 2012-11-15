@@ -128,9 +128,9 @@ class TemplateAlignment
     };
 
     TemplateAlignment () :
-      min_sample_distance_ (0.0001f),
-      max_correspondence_distance_ (0.99f*0.99f),
-      nr_iterations_ (1000)
+      min_sample_distance_ (0.05f),
+      max_correspondence_distance_ (0.01f*0.01f),
+      nr_iterations_ (500)
     {
       // Intialize the parameters in the Sample Consensus Intial Alignment (SAC-IA) algorithm
       sac_ia_.setMinSampleDistance (min_sample_distance_);
@@ -160,25 +160,39 @@ class TemplateAlignment
     void
     align (FeatureCloud &template_cloud, TemplateAlignment::Result &result)
     {
-      sac_ia_.setInputCloud (template_cloud.getPointCloud ());
-      sac_ia_.setSourceFeatures (template_cloud.getLocalFeatures ());
+        pcl::SampleConsensusInitialAlignment<pcl::PointXYZ, pcl::PointXYZ, pcl::FPFHSignature33> tmp;
+        tmp.setInputTarget(sac_ia_.getInputTarget());
+        tmp.setTargetFeatures(sac_ia_.getTargetFeatures());
+        tmp.setMinSampleDistance(sac_ia_.getMinSampleDistance());
+        tmp.setMaxCorrespondenceDistance(sac_ia_.getMaxCorrespondenceDistance());
+        tmp.setMaximumIterations(sac_ia_.getMaximumIterations());
+
+      tmp.setInputCloud (template_cloud.getPointCloud ());
+      tmp.setSourceFeatures (template_cloud.getLocalFeatures ());
 
       pcl::PointCloud<pcl::PointXYZ> registration_output;
-      sac_ia_.align (registration_output);
+      tmp.align (registration_output);
 
-      result.fitness_score = (float) sac_ia_.getFitnessScore (max_correspondence_distance_);
-      result.final_transformation = sac_ia_.getFinalTransformation ();
+      result.fitness_score = (float) tmp.getFitnessScore (max_correspondence_distance_);
+      result.final_transformation = tmp.getFinalTransformation ();
     }
 
     // Align all of template clouds set by addTemplateCloud to the target specified by setTargetCloud ()
     void
     alignAll (std::vector<TemplateAlignment::Result, Eigen::aligned_allocator<Result> > &results)
     {
-      results.resize (templates_.size ());
-      for (size_t i = 0; i < templates_.size (); ++i)
-      {
-        align (templates_[i], results[i]);
-      }
+        results.resize (templates_.size ());
+        int total = 0;
+        #pragma omp parallel for
+        for (size_t i = 0; i < templates_.size (); ++i)
+        {
+            #pragma omp critical
+            {
+                std::cout << "TOTAL: " << total << std::endl;
+                total ++;
+            }
+            align (templates_[i], results[i]);
+        }
     }
 
     // Align all of template clouds to the target cloud to find the one with best alignment score
@@ -229,26 +243,44 @@ main (int argc, char **argv)
     return (-1);
   }
 
+  std::cout << "START" << std::endl;
   // Load the object templates specified in the object_templates.txt file
   std::vector<FeatureCloud> object_templates;
   std::ifstream input_stream (argv[1]);
   object_templates.resize (0);
   std::string pcd_filename;
-  while (input_stream.good ())
-  {
-    std::getline (input_stream, pcd_filename);
-    if (pcd_filename.empty () || pcd_filename.at (0) == '#') // Skip blank lines or comments
-      continue;
 
-    FeatureCloud template_cloud;
-    template_cloud.loadInputCloud (pcd_filename);
-    object_templates.push_back (template_cloud);
-  }
-  input_stream.close ();
+    std::vector<std::string> filenames;
+    while (input_stream.good ())
+    {
+        std::getline (input_stream, pcd_filename);
+        if (pcd_filename.empty () || pcd_filename.at (0) == '#') // Skip blank lines or comments
+            continue;
+        filenames.push_back(pcd_filename);
+    }
+    input_stream.close ();
+
+
+    int total = 0;
+    #pragma omp parallel for
+    for(int i = 0; i< filenames.size(); i++){
+
+        FeatureCloud template_cloud;
+        template_cloud.loadInputCloud (filenames[i]);
+        #pragma omp critical
+        {
+            object_templates.push_back (template_cloud);
+            std::cout << "TOTAL: " << total << std::endl;
+            total++;
+        }
+    }
+
+  std::cout << "1" << std::endl;
 
   // Load the target cloud PCD file
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
   pcl::io::loadPCDFile (argv[2], *cloud);
+  std::cout << "2" << std::endl;
 
   // Preprocess the cloud by...
   // ...removing distant points
@@ -272,6 +304,7 @@ main (int argc, char **argv)
   // Assign to the target FeatureCloud
   FeatureCloud target_cloud;
   target_cloud.setInputCloud (cloud);
+  std::cout << "3" << std::endl;
 
   // Set the TemplateAlignment inputs
   TemplateAlignment template_align;
@@ -280,11 +313,13 @@ main (int argc, char **argv)
     template_align.addTemplateCloud (object_templates[i]);
   }
   template_align.setTargetCloud (target_cloud);
+  std::cout << "4" << std::endl;
 
   // Find the best template alignment
   TemplateAlignment::Result best_alignment;
   int best_index = template_align.findBestAlignment (best_alignment);
   const FeatureCloud &best_template = object_templates[best_index];
+  std::cout << "5" << std::endl;
 
   // Print the alignment fitness score (values less than 0.00002 are good)
   printf ("Best fitness score: %f\n", best_alignment.fitness_score);
@@ -303,7 +338,7 @@ main (int argc, char **argv)
   // Save the aligned template for visualization
   pcl::PointCloud<pcl::PointXYZ> transformed_cloud;
   pcl::transformPointCloud (*best_template.getPointCloud (), transformed_cloud, best_alignment.final_transformation);
-  pcl::io::savePCDFileBinary ("output.pcd", transformed_cloud);
+  pcl::io::savePCDFileBinary ("aligned.pcd", transformed_cloud);
 
   return (0);
 }
